@@ -1,9 +1,8 @@
 import argparse
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.optim as optim
-from torch.nn.utils import clip_grad_norm
+from torch.nn.utils import clip_grad_norm_
 import numpy as np
 import os
 import sys
@@ -82,6 +81,18 @@ def train(
         checkpoint_checked = True # this epoch is already checked
     else:
         logger.info('No checkpoint found! Training from the scratch')
+
+    if not os.path.exists(opt.model_file):
+        # copy start_from model to new directory
+        logger.info(
+            '>>> No model file found. Write a base checkpoint.')
+
+        torch.save({'model': model.state_dict(),
+                    'infos': infos,
+                    'opt': opt
+                    }, opt.model_file)
+
+        logger.info('Wrote checkpoint to: %s', opt.model_file)
         
     if opt.use_rl == 1 and opt.use_rl_after == 0:
         opt.use_rl_after = infos['epoch']
@@ -92,14 +103,10 @@ def train(
         t_start = time.time()
         model.train()
         data = train_loader.get_batch()
-        feats = [Variable(feat, volatile=False) for feat in data['feats']]
-        labels = Variable(data['labels'], volatile=False)
-        masks = Variable(data['masks'], volatile=False)
+        feats = [feat.cuda() for feat in data['feats']]
+        labels = data['labels'].cuda()
+        masks = data['masks'].cuda()
 
-        if torch.cuda.is_available():
-            feats = [feat.cuda() for feat in feats]
-            labels = labels.cuda()
-            masks = masks.cuda()
 
         # implement scheduled sampling
         opt.ss_prob = 0
@@ -167,27 +174,12 @@ def train(
             
             if opt.use_cst == 0:
                 # greedy decoding baseline in SCST paper
-                greedy_baseline, _ = model.sample([Variable(f.data, volatile=True) for f in feats],
+                greedy_baseline, _ = model.sample(feats,
                                            {'sample_max': 1, 'expand_feat': opt.expand_feat})
 
-            """
-            if opt.loglevel.upper() == 'DEBUG' and opt.use_cst == 0:
-                model_sents = utils.decode_sequence(opt.vocab, model_res)
-                baseline_sents = utils.decode_sequence(opt.vocab, greedy_baseline)
-                for jj, sent in enumerate(zip(model_sents, baseline_sents)):
-                    if opt.expand_feat == 1:
-                        video_id = data['ids'][
-                            jj // train_loader.get_seq_per_img()]
-                    else:
-                        video_id = data['ids'][jj]
-                    logger.debug(
-                        '[%d] video %s\n\t Model: %s \n\t Greedy: %s' %
-                        (jj, video_id, sent[0], sent[1]))
-            """
- 
             if opt.use_cst == 1:
                 bcmrscores = data['bcmrscores']    
-                reward, m_score, g_score = utils.get_cst_reward(model_res, data['gts'], bcmr_scorer,
+                reward, m_score, g_score = utils.get_cst_reward(model_res.cpu().numpy(), data['gts'], bcmr_scorer,
                                                                             bcmrscores=bcmrscores,
                                                                             expand_feat=opt.expand_feat,
                                                                             seq_per_img=train_loader.get_seq_per_img(),
@@ -198,46 +190,26 @@ def train(
                                                                          )
             else:
                 # use greedy baseline by default, compute self-critical reward
-                reward, m_score, g_score = utils.get_self_critical_reward(model_res, greedy_baseline, data['gts'], bcmr_scorer,
+                reward, m_score, g_score = utils.get_self_critical_reward(model_res.cpu().numpy(), greedy_baseline.cpu().numpy(),
+                                                                          data['gts'], bcmr_scorer,
                                                                           expand_feat=opt.expand_feat,
                                                                           seq_per_img=train_loader.get_seq_per_img(),
                                                                           use_eos=opt.use_eos)
                 
-            """[[
-            #import pdb; pdb.set_trace()
-            rl_loss = 0
-            xe_loss = 0
-            # -1 because we don't count <eos> here
-            
-            if mixer_from < model_res.size(1)-1:
-                rl_loss = rl_criterion(
-                    model_res[:,mixer_from:],
-                    logprobs[:,mixer_from:],
-                    Variable(
-                        torch.from_numpy(reward[:,mixer_from:]).float().cuda(),
-                        requires_grad=False))
-            
-            if mixer_from > 0:
-                xe_loss = criterion(pred[:, :mixer_from], labels[:, 1:mixer_from+1], masks[:, 1:mixer_from+1])
-            
-            loss = rl_loss + xe_loss
-            """
-            
             loss = rl_criterion(
                     model_res,
                     logprobs,
-                    Variable(
-                        torch.from_numpy(reward).float().cuda(),
-                        requires_grad=False))
+                    torch.from_numpy(reward).float().cuda(),
+                    )
             
         else:
             pred = model(feats, labels)[0]
             loss = criterion(pred, labels[:, 1:], masks[:, 1:])
         
         loss.backward()
-        clip_grad_norm(model.parameters(), opt.grad_clip)
+        clip_grad_norm_(model.parameters(), opt.grad_clip)
         optimizer.step()
-        infos['TrainLoss'] = loss.data[0]
+        infos['TrainLoss'] = loss.item()
         infos['mixer_from'] = mixer_from
         infos['scb_captions'] = scb_captions
         
@@ -322,10 +294,10 @@ def validate(model, criterion, loader, opt):
     test_avglogps = []
     for ii in range(num_iters):
         data = loader.get_batch()
-        feats = [Variable(feat, volatile=True) for feat in data['feats']]
+        feats = data['feats']
         if loader.has_label:
-            labels = Variable(data['labels'], volatile=True)
-            masks = Variable(data['masks'], volatile=True)
+            labels = data['labels']
+            masks = data['masks']
 
         if ii == (num_iters - 1) and last_batch_size > 0:
             feats = [f[:last_batch_size] for f in feats]
@@ -335,25 +307,30 @@ def validate(model, criterion, loader, opt):
                     seq_per_img]  # labels shape is DxN
                 masks = masks[:last_batch_size * seq_per_img]
 
-        if torch.cuda.is_available():
-            feats = [feat.cuda() for feat in feats]
-            if loader.has_label:
-                labels = labels.cuda()
-                masks = masks.cuda()
+        feats = [feat.cuda() for feat in feats]
+        if loader.has_label:
+            labels = labels.cuda()
+            masks = masks.cuda()
 
         if loader.has_label:
-            pred, gt_seq, gt_logseq = model(feats, labels)
+            with torch.no_grad():
+                pred, gt_seq, gt_logseq = model(feats, labels)
+            gt_seq = gt_seq.cpu()
+            gt_logseq = gt_logseq.cpu()
             if opt.output_logp == 1:
-                gt_avglogp = utils.compute_avglogp(gt_seq, gt_logseq.data)
+                gt_avglogp = utils.compute_avglogp(gt_seq.numpy(), gt_logseq.numpy())
                 gt_avglogps.extend(gt_avglogp)
                 
             loss = criterion(pred, labels[:, 1:], masks[:, 1:])
-            loss_sum += loss.data[0]
+            loss_sum += loss.item()
 
-        seq, logseq = model.sample(feats, {'beam_size': opt.beam_size})
-        sents = utils.decode_sequence(opt.vocab, seq)
+        with torch.no_grad():
+            seq, logseq = model.sample(feats, {'beam_size': opt.beam_size})
+        seq = seq.cpu()
+        logseq = logseq.cpu()
+        sents = utils.decode_sequence(opt.vocab, seq.numpy())
         if opt.output_logp == 1:
-            test_avglogp = utils.compute_avglogp(seq, logseq)
+            test_avglogp = utils.compute_avglogp(seq.numpy(), logseq.numpy())
             test_avglogps.extend(test_avglogp)
         
         for jj, sent in enumerate(sents):
@@ -408,6 +385,7 @@ def test(model, criterion, loader, opt):
 
 
 def check_model(model, opt, infos, infos_history):
+    
 
     if opt.eval_metric == 'MSRVTT':
         current_score = infos['Bleu_4'] + \
@@ -462,8 +440,7 @@ if __name__ == '__main__':
     # Set the random seed manually for reproducibility.
     np.random.seed(opt.seed)
     torch.manual_seed(opt.seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(opt.seed)
+    torch.cuda.manual_seed(opt.seed)
 
     train_opt = {'label_h5': opt.train_label_h5,
                  'batch_size': opt.batch_size,
@@ -510,10 +487,9 @@ if __name__ == '__main__':
     xe_criterion = CrossEntropyCriterion()
     rl_criterion = RewardCriterion()
 
-    if torch.cuda.is_available():
-        model.cuda()
-        xe_criterion.cuda()
-        rl_criterion.cuda()
+    model.cuda()
+    xe_criterion.cuda()
+    rl_criterion.cuda()
 
     logger.info('Start training...')
     start = datetime.now()

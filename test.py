@@ -67,9 +67,8 @@ if __name__ == '__main__':
 
     xe_criterion = CrossEntropyCriterion()
 
-    if torch.cuda.is_available():
-        model.cuda()
-        xe_criterion.cuda()
+    model.cuda()
+    xe_criterion.cuda()
 
     logger.info('Start testing...')
     test(model, xe_criterion, test_loader, opt)

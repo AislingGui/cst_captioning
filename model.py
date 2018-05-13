@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 import numpy as np
 
 
@@ -25,9 +24,9 @@ class RewardCriterion(nn.Module):
         mask = (seq > 0).float()
         # add one to the right to count for the <eos> token
         mask = to_contiguous(torch.cat(
-            [mask.new(mask.size(0), 1).fill_(1), mask[:, :-1]], 1)).view(-1)
+            [mask.new_ones(mask.size(0), 1), mask[:, :-1]], 1)).view(-1)
         #import pdb; pdb.set_trace()
-        output = - logprobs * reward * Variable(mask)
+        output = - logprobs * reward * mask
         output = torch.sum(output) / torch.sum(mask)
 
         return output
@@ -61,9 +60,7 @@ class FeatPool(nn.Module):
         module_list = []
         for dim in feat_dims:
             module = nn.Sequential(
-                nn.Linear(
-                    dim,
-                    out_size),
+                nn.Linear(dim, out_size),
                 nn.ReLU(),
                 nn.Dropout(dropout))
             module_list += [module]
@@ -93,14 +90,10 @@ class FeatExpander(nn.Module):
         if self.n == 1:
             out = x
         else:
-            out = Variable(
-                x.data.new(
-                    self.n * x.size(0),
-                    x.size(1)),
-                volatile=x.volatile)
+            out =  x.new(self.n * x.size(0), x.size(1))
+                
             for i in range(x.size(0)):
-                out[i * self.n:(i + 1) *
-                    self.n] = x[i].expand(self.n, x.size(1))
+                out[i * self.n: (i + 1) * self.n] = x[i].expand(self.n, x.size(1))
         return out
 
     def set_n(self, x):
@@ -153,7 +146,7 @@ class MANet(nn.Module):
     def forward(self, x, h):
         f_feat = self.f_feat_m(x)
         f_h = self.f_h_m(h.squeeze(0))  # assuming now num_layers is 1
-        att_weight = nn.Softmax()(self.align_m(nn.Tanh()(f_feat + f_h)))
+        att_weight = nn.Softmax(dim=-1)(self.align_m(nn.Tanh()(f_feat + f_h)))
         att_weight = att_weight.unsqueeze(2).expand(
             x.size(0), self.num_feats, self.video_encoding_size / self.num_feats)
         att_weight = att_weight.contiguous().view(x.size(0), x.size(1))
@@ -220,33 +213,21 @@ class CaptionModel(nn.Module):
         self.seq_per_img = x
         self.feat_expander.set_n(x)
 
+
     def init_weights(self):
         initrange = 0.1
-        self.embed.weight.data.uniform_(-initrange, initrange)
-        self.logit.bias.data.fill_(0)
-        self.logit.weight.data.uniform_(-initrange, initrange)
+#        self.embed.weight.uniform_(-initrange, initrange)
+#        self.logit.bias.fill_(0)
+#        self.logit.weight.uniform_(-initrange, initrange)
 
     def init_hidden(self, batch_size):
-        weight = next(self.parameters()).data
+        weight = next(self.parameters())
 
         if self.rnn_type == 'lstm':
-            return (
-                Variable(
-                    weight.new(
-                        self.num_layers,
-                        batch_size,
-                        self.rnn_size).zero_()),
-                Variable(
-                    weight.new(
-                        self.num_layers,
-                        batch_size,
-                        self.rnn_size).zero_()))
+            return (weight.new_zeros(self.num_layers, batch_size, self.rnn_size),
+                    weight.new_zeros(self.num_layers, batch_size, self.rnn_size))
         else:
-            return Variable(
-                weight.new(
-                    self.num_layers,
-                    batch_size,
-                    self.rnn_size).zero_())
+            return  weight.new_zeros(self.num_layers, batch_size, self.rnn_size)
 
     def forward(self, feats, seq):
         
@@ -272,34 +253,32 @@ class CaptionModel(nn.Module):
                 # (already encoded in seq)
 
                 if self.training and token_idx >= 1 and self.ss_prob > 0.0:
-                    sample_prob = fc_feats.data.new(batch_size).uniform_(0, 1)
+                    sample_prob = fc_feats.new(batch_size).uniform_(0, 1)
                     sample_mask = sample_prob < self.ss_prob
                     if sample_mask.sum() == 0:
                         it = seq[:, token_idx].clone()
                     else:
                         sample_ind = sample_mask.nonzero().view(-1)
-                        it = seq[:, token_idx].data.clone()
+                        it = seq[:, token_idx].clone()
                         # fetch prev distribution: shape Nx(M+1)
-                        prob_prev = torch.exp(outputs[-1].data)
+                        prob_prev = torch.exp(outputs[-1])
                         sample_ind_tokens = torch.multinomial(
                             prob_prev, 1).view(-1).index_select(0, sample_ind)
                         it.index_copy_(0, sample_ind, sample_ind_tokens)
-                        it = Variable(it, requires_grad=False)
                 elif self.training and self.mixer_from > 0 and token_idx >= self.mixer_from:
-                    prob_prev = torch.exp(outputs[-1].data)
+                    prob_prev = torch.exp(outputs[-1])
                     it = torch.multinomial(prob_prev, 1).view(-1)
-                    it = Variable(it, requires_grad=False)
                 else:
                     it = seq[:, token_idx].clone()
 
                 if token_idx >= 1:
                     # store the seq and its logprobs
-                    sample_seq.append(it.data)
+                    sample_seq.append(it)
                     logprobs = outputs[-1].gather(1, it.unsqueeze(1))
                     sample_logprobs.append(logprobs.view(-1))
                 
                 # break if all the sequences end, which requires EOS token = 0
-                if it.data.sum() == 0:
+                if it.sum() == 0:
                     break
                 xt = self.embed(it)
 
@@ -311,7 +290,7 @@ class CaptionModel(nn.Module):
                 output, state = self.core(torch.cat([xt, fc_feats], 1), state)
                 
             if token_idx >= 0:
-                output = F.log_softmax(self.logit(self.dropout(output)))
+                output = F.log_softmax(self.logit(self.dropout(output)), dim=-1)
                 outputs.append(output)
                 
         # only returns outputs of seq input
@@ -339,7 +318,7 @@ class CaptionModel(nn.Module):
         seq = []
         seqLogprobs = []
 
-        unfinished = fc_feats.data.new(batch_size).fill_(1).byte()
+        unfinished = fc_feats.new_ones(batch_size, dtype=torch.uint8)
 
         # -- if <image feature> is input at the first step, use index -1
         start_i = -1 if self.model_type == 'standard' else 0
@@ -350,31 +329,26 @@ class CaptionModel(nn.Module):
                 xt = fc_feats
             else:
                 if token_idx == 0:  # input <bos>
-                    it = fc_feats.data.new(
-                        batch_size).long().fill_(self.bos_index)
+                    it = fc_feats.new(batch_size).long().fill_(self.bos_index)
                 elif sample_max == 1:
                     # output here is a Tensor, because we don't use backprop
-                    sampleLogprobs, it = torch.max(logprobs.data, 1)
+                    sampleLogprobs, it = torch.max(logprobs, 1)
                     it = it.view(-1).long()
                 else:
                     if temperature == 1.0:
                         # fetch prev distribution: shape Nx(M+1)
-                        prob_prev = torch.exp(logprobs.data).cpu()
+                        prob_prev = torch.exp(logprobs)
                     else:
                         # scale logprobs by temperature
-                        prob_prev = torch.exp(
-                            torch.div(
-                                logprobs.data,
-                                temperature)).cpu()
+                        prob_prev = torch.exp(torch.div(logprobs,temperature))
                     #import pdb; pdb.set_trace()
-                    it = torch.multinomial(prob_prev, 1).cuda()
+                    it = torch.multinomial(prob_prev, 1)
                     # gather the logprobs at sampled positions
-                    sampleLogprobs = logprobs.gather(
-                        1, Variable(it, requires_grad=False))
+                    sampleLogprobs = logprobs.gather(1, it)
                     # and flatten indices for downstream processing
                     it = it.view(-1).long()
 
-                xt = self.embed(Variable(it, requires_grad=False))
+                xt = self.embed(it)
 
             if token_idx >= 1:
                 unfinished = unfinished * (it > 0)
@@ -395,7 +369,7 @@ class CaptionModel(nn.Module):
                     fc_feats = self.manet(fc_feats, state[0])
                 output, state = self.core(torch.cat([xt, fc_feats], 1), state)
 
-            logprobs = F.log_softmax(self.logit(output))
+            logprobs = F.log_softmax(self.logit(output), dim=-1)
 
         return torch.cat([_.unsqueeze(1) for _ in seq], 1), torch.cat(
             [_.unsqueeze(1) for _ in seqLogprobs], 1)
@@ -408,7 +382,7 @@ class CaptionModel(nn.Module):
         fc_feats = self.feat_pool(feats)
         batch_size = fc_feats.size(0)
 
-        seq = torch.LongTensor(self.seq_length, batch_size).zero_()
+        seq = torch.zeros((self.seq_length, batch_size), dtype=torch.long)
         seqLogprobs = torch.FloatTensor(self.seq_length, batch_size)
         # lets process every image independently for now, for simplicity
             
@@ -418,9 +392,8 @@ class CaptionModel(nn.Module):
             fc_feats_k = fc_feats[k].expand(
                 beam_size, self.video_encoding_size)
 
-            beam_seq = torch.LongTensor(self.seq_length, beam_size).zero_()
-            beam_seq_logprobs = torch.FloatTensor(
-                self.seq_length, beam_size).zero_()
+            beam_seq = torch.zeros((self.seq_length, beam_size), dtype=torch.long)
+            beam_seq_logprobs = torch.zeros(self.seq_length, beam_size)
             # running sum of logprobs for each beam
             beam_logprobs_sum = torch.zeros(beam_size)
 
@@ -432,15 +405,14 @@ class CaptionModel(nn.Module):
                 if token_idx == -1:
                     xt = fc_feats_k
                 elif token_idx == 0:  # input <bos>
-                    it = fc_feats.data.new(
-                        beam_size).long().fill_(self.bos_index)
-                    xt = self.embed(Variable(it, requires_grad=False))
+                    it = fc_feats.new(beam_size).long().fill_(self.bos_index)
+                    xt = self.embed(it)
                 else:
                     """perform a beam merge. that is,
                     for every previous beam we now many new possibilities to branch out
                     we need to resort our beams to maintain the loop invariant of keeping
                     the top beam_size most likely sequences."""
-                    logprobsf = logprobs.float()  # lets go to CPU for more efficiency in indexing operations
+                    logprobsf = logprobs.float().cpu()  # lets go to CPU for more efficiency in indexing operations
                     # sorted array of logprobs along each previous beam (last
                     # true = descending)
                     ys, ix = torch.sort(logprobsf, 1, True)
@@ -454,10 +426,9 @@ class CaptionModel(nn.Module):
                             # compute logprob of expanding beam q with word in
                             # (sorted) position c
                             local_logprob = ys[q, c]
-                            candidate_logprob = beam_logprobs_sum[
-                                q] + local_logprob
-                            candidates.append({'c': ix.data[q, c], 'q': q, 'p': candidate_logprob.data[
-                                              0], 'r': local_logprob.data[0]})
+                            candidate_logprob = beam_logprobs_sum[q] + local_logprob
+                            candidates.append({'c': ix[q, c], 'q': q, 'p': candidate_logprob.item(),
+                                               'r': local_logprob.item()})
                     candidates = sorted(candidates, key=lambda x: -x['p'])
 
                     # construct new beams
@@ -515,7 +486,7 @@ class CaptionModel(nn.Module):
 
                     # encode as vectors
                     it = beam_seq[token_idx - 1]
-                    xt = self.embed(Variable(it.cuda()))
+                    xt = self.embed(it.cuda())
 
                 if token_idx >= 1:
                     state = new_state
@@ -528,7 +499,7 @@ class CaptionModel(nn.Module):
                     output, state = self.core(
                         torch.cat([xt, fc_feats_k], 1), state)
 
-                logprobs = F.log_softmax(self.logit(output))
+                logprobs = F.log_softmax(self.logit(output), dim=-1)
 
             
             #self.done_beams[k] = sorted(self.done_beams[k], key=lambda x: -x['p'])

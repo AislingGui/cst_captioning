@@ -78,7 +78,7 @@ def compute_score(gt_refs, predictions, scorer):
 
 # Input: seq, N*D numpy array, with element 0 .. vocab_size. 0 is END token.
 def decode_sequence(ix_to_word, seq):
-    N, D = seq.size()
+    N, D = seq.shape
     out = []
     for i in range(N):
         txt = ''
@@ -95,9 +95,6 @@ def decode_sequence(ix_to_word, seq):
 
 # Input: seq, N*D numpy array, with element 0 .. vocab_size. 0 is END token.
 def compute_avglogp(seq, logseq, eos_token=0):
-    seq = seq.cpu().numpy()
-    logseq = logseq.cpu().numpy()
-    
     N, D = seq.shape
     out_avglogp = []
     for i in range(N):
@@ -175,11 +172,8 @@ def get_self_critical_reward(
         seq_per_img=20,
         use_eos=0):
     
-    batch_size = model_res.size(0)
+    batch_size = model_res.shape(0)
 
-    model_res = model_res.cpu().numpy()
-    greedy_res = greedy_res.cpu().numpy()
-    
     res = OrderedDict()
     for i in range(batch_size):
         res[i] = [array_to_str(model_res[i], use_eos)]
@@ -243,10 +237,8 @@ def get_cst_reward(
     """
     
     if bcmrscores is None or use_mixer == 1:
-        batch_size = model_res.size(0)
+        batch_size = model_res.shape[0]
 
-        model_res = model_res.cpu().numpy()
-        
         res = OrderedDict()
         for i in range(batch_size):
             res[i] = [array_to_str(model_res[i], use_eos)]
