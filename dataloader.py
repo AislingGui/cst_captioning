@@ -87,17 +87,16 @@ class DataLoader():
 
         video_batch = []
         for dim in self.feat_dims:
-            feat = torch.FloatTensor(
-                self.batch_size, self.num_chunks, dim).zero_()
+            feat = torch.zeros(self.batch_size, self.num_chunks, dim)
             video_batch.append(feat)
 
         if self.has_label:
-            label_batch = torch.LongTensor(
+            label_batch = torch.zeros(
+                (self.batch_size * self.seq_per_img,
+                self.seq_length), dtype=torch.long)
+            mask_batch = torch.zeros(
                 self.batch_size * self.seq_per_img,
-                self.seq_length).zero_()
-            mask_batch = torch.FloatTensor(
-                self.batch_size * self.seq_per_img,
-                self.seq_length).zero_()
+                self.seq_length)
 
         videoids_batch = []
         gts = []
@@ -119,10 +118,8 @@ class DataLoader():
                 ncap = ix2 - ix1  # number of captions available for this image
                 assert ncap > 0, 'No captions!!'
 
-                seq = torch.LongTensor(
-                    self.seq_per_img, self.seq_length).zero_()
-                seq_all = torch.from_numpy(
-                    np.array(self.label_h5['labels'][ix1:ix2]))
+                seq = torch.zeros(self.seq_per_img, self.seq_length)
+                seq_all = torch.from_numpy(np.array(self.label_h5['labels'][ix1:ix2]))
 
                 if ncap <= self.seq_per_img:
                     seq[:ncap] = seq_all[:ncap]

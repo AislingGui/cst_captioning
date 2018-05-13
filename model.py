@@ -90,7 +90,7 @@ class FeatExpander(nn.Module):
         if self.n == 1:
             out = x
         else:
-            out =  x.new(self.n * x.size(0), x.size(1))
+            out =  x.new_empty((self.n * x.size(0), x.size(1)))
                 
             for i in range(x.size(0)):
                 out[i * self.n: (i + 1) * self.n] = x[i].expand(self.n, x.size(1))
@@ -224,10 +224,10 @@ class CaptionModel(nn.Module):
         weight = next(self.parameters())
 
         if self.rnn_type == 'lstm':
-            return (weight.new_zeros(self.num_layers, batch_size, self.rnn_size),
-                    weight.new_zeros(self.num_layers, batch_size, self.rnn_size))
+            return (weight.new_zeros((self.num_layers, batch_size, self.rnn_size)),
+                    weight.new_zeros((self.num_layers, batch_size, self.rnn_size)))
         else:
-            return  weight.new_zeros(self.num_layers, batch_size, self.rnn_size)
+            return  weight.new_zeros((self.num_layers, batch_size, self.rnn_size))
 
     def forward(self, feats, seq):
         
@@ -329,7 +329,7 @@ class CaptionModel(nn.Module):
                 xt = fc_feats
             else:
                 if token_idx == 0:  # input <bos>
-                    it = fc_feats.new(batch_size).long().fill_(self.bos_index)
+                    it = fc_feats.new_full([batch_size,], self.bos_index, dtype=torch.long)
                 elif sample_max == 1:
                     # output here is a Tensor, because we don't use backprop
                     sampleLogprobs, it = torch.max(logprobs, 1)
@@ -405,7 +405,7 @@ class CaptionModel(nn.Module):
                 if token_idx == -1:
                     xt = fc_feats_k
                 elif token_idx == 0:  # input <bos>
-                    it = fc_feats.new(beam_size).long().fill_(self.bos_index)
+                    it = fc_feats.new_full([beam_size,], self.bos_index, dtype=torch.long)
                     xt = self.embed(it)
                 else:
                     """perform a beam merge. that is,
