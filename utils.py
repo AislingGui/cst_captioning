@@ -172,7 +172,7 @@ def get_self_critical_reward(
         seq_per_img=20,
         use_eos=0):
     
-    batch_size = model_res.shape(0)
+    batch_size = model_res.shape[0]
 
     res = OrderedDict()
     for i in range(batch_size):
