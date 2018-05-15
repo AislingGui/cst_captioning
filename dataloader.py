@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import torch
 import json
 import h5py
@@ -34,9 +32,9 @@ class DataLoader():
         # open the hdf5 info file
         logger.info('DataLoader loading h5 file: %s', opt['label_h5'])
         self.label_h5 = h5py.File(opt['label_h5'], 'r')
-
         self.vocab = [i.decode() for i in self.label_h5['vocab']]
         self.videos = [i.decode() for i in self.label_h5['videos']]
+        self.labels = self.label_h5['labels']
 
         self.ix_to_word = {i: w for i, w in enumerate(self.vocab)}
         self.num_videos = len(self.videos)
@@ -79,9 +77,12 @@ class DataLoader():
             self.shuffle_videos()
 
     def __del__(self):
+        """
+        # has bugs in python3
+        self.label_h5.close()
         for f in self.feat_h5:
             f.close()
-        self.label_h5.close()
+        """
 
     def get_batch(self):
 

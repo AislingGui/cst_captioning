@@ -104,7 +104,7 @@ def compute_avglogp(seq, logseq, eos_token=0):
             avglogp.append(logseq[i, j])
             if ix == eos_token:
                 break
-        avg = 0 if len(avglogp) == 0 else sum(avglogp)/float(len(avglogp))
+        avg = 0 if len(avglogp) == 0 else sum(avglogp)/len(avglogp)
         out_avglogp.append(avg)
     return out_avglogp
 

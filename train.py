@@ -138,7 +138,7 @@ def train(
             
             # -1 for annealing
             if opt.mixer_from == -1:
-                annealing_mixer = opt.seq_length - int(np.ceil((infos['epoch']-opt.use_rl_after+1)/float(opt.mixer_descrease_every)))
+                annealing_mixer = opt.seq_length - int(np.ceil((infos['epoch']-opt.use_rl_after+1)/opt.mixer_descrease_every))
                 mixer_from = max(1, annealing_mixer)
                 
             model.set_mixer_from(mixer_from)
@@ -158,7 +158,7 @@ def train(
             # if opt.scb_captions is -1, then use the annealing value, 
             # otherwise, use the set value
             if opt.scb_captions == -1:
-                annealing_robust = int(np.ceil((infos['epoch']-opt.use_cst_after+1)/float(opt.cst_increase_every)))
+                annealing_robust = int(np.ceil((infos['epoch']-opt.use_cst_after+1)/opt.cst_increase_every))
                 scb_captions = min(annealing_robust, seq_per_img-1)
             
         optimizer.zero_grad()
@@ -360,7 +360,7 @@ def validate(model, criterion, loader, opt):
     results['scores'].update(lang_stats)
     
     if opt.output_logp == 1:
-        avglogp = sum(test_avglogps)/float(len(test_avglogps))
+        avglogp = sum(test_avglogps)/len(test_avglogps)
         results['scores'].update({'avglogp': avglogp})
         
         gt_avglogps = np.array(gt_avglogps).reshape(-1, seq_per_img)

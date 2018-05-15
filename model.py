@@ -217,7 +217,7 @@ class CaptionModel(nn.Module):
     def init_weights(self):
         initrange = 0.1
         nn.init.uniform_(self.embed.weight, a=-initrange, b=initrange)
-        nn.init.xavier_normal(self.logit.weight)
+        nn.init.xavier_normal_(self.logit.weight)
         nn.init.constant_(self.logit.bias, 0)
 
     def init_hidden(self, batch_size):
