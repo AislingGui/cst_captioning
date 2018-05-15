@@ -5,7 +5,6 @@ Build vocabulary file
 import os
 import json
 import argparse
-import h5py
 import numpy as np
 import string
 from collections import Counter
@@ -29,19 +28,19 @@ def build_vocab(videos, word_count_threshold):
         for tokens in v['processed_tokens']:
             counter.update(tokens)
 
-    cw = sorted([(count, w) for w, count in counter.iteritems()], reverse=True)
+    cw = sorted([(count, w) for w, count in counter.items()], reverse=True)
     logger.info('Top words and their counts: \n %s',
                 '\n'.join(map(str, cw[:20])))
 
-    unknown_words = [w for w, n in counter.iteritems() if n <
+    unknown_words = [w for w, n in counter.items() if n <
                      word_count_threshold]
     unknown_count = sum(counter[w] for w in unknown_words)
-    total_count = sum(counter.itervalues())
+    total_count = sum(counter.values())
 
     # for efficent calculating, set __EOS_TOKEN first so that its index will
     # be 0
     vocab = [__EOS_TOKEN, __BOS_TOKEN, __UNK_TOKEN]
-    vocab.extend([w for w, n in counter.iteritems()
+    vocab.extend([w for w, n in counter.items()
                   if n >= word_count_threshold])
 
     logger.info('Total words: %d', total_count)

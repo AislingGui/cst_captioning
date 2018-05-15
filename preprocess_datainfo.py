@@ -29,7 +29,7 @@ def prepro_captions(videos):
             caption_ascii = ''.join(
                 [ii if ord(ii) < 128 else '' for ii in caption])
             tokens = str(caption_ascii).lower().translate(
-                None, string.punctuation).strip().split()
+                string.punctuation).strip().split()
             v['processed_tokens'].append(tokens)
 
 

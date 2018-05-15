@@ -6,7 +6,7 @@ https://github.com/ruotianluo/self-critical.pytorch/blob/master/scripts/prepro_n
 import os
 import json
 import argparse
-from six.moves import cPickle
+import pickle
 from collections import defaultdict
 
 import logging
@@ -27,8 +27,8 @@ def precook(s, n=4, out=False):
     """
     words = s.split()
     counts = defaultdict(int)
-    for k in xrange(1, n + 1):
-        for i in xrange(len(words) - k + 1):
+    for k in range(1, n + 1):
+        for i in range(len(words) - k + 1):
             ngram = tuple(words[i:i + k])
             counts[ngram] += 1
     return counts
@@ -64,7 +64,7 @@ def compute_doc_freq(crefs):
     for refs in crefs:
         # refs, k ref captions of one image
         for ngram in set([ngram for ref in refs for (
-                ngram, count) in ref.iteritems()]):
+                ngram, count) in ref.items()]):
             document_frequency[ngram] += 1
             # maxcounts[ngram] = max(maxcounts.get(ngram,0), count)
     return document_frequency
@@ -120,14 +120,14 @@ def main(vocab_json, captions_json, output_pkl, save_words=False):
     ngram_words, ngram_idxs, ref_len = build_dict(videos, wtoi)
 
     logger.info('Saving index to: %s', output_pkl)
-    cPickle.dump({'document_frequency': ngram_idxs, 'ref_len': ref_len}, open(
-        output_pkl, 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
+    pickle.dump({'document_frequency': ngram_idxs, 'ref_len': ref_len}, open(
+        output_pkl, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
     if save_words:
         output_file = output_pkl.replace('.pkl', '_words.pkl', 1)
         logger.info('Saving word to: %s', output_file)
-        cPickle.dump({'document_frequency': ngram_words, 'ref_len': ref_len}, open(
-            output_file, 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
+        pickle.dump({'document_frequency': ngram_words, 'ref_len': ref_len}, open(
+            output_file, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,

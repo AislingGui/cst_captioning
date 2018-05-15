@@ -7,7 +7,7 @@ import os
 import numpy as np
 import random
 import time
-import cPickle
+import pickle
 
 import logging
 from datetime import datetime
@@ -35,12 +35,12 @@ class DataLoader():
         logger.info('DataLoader loading h5 file: %s', opt['label_h5'])
         self.label_h5 = h5py.File(opt['label_h5'], 'r')
 
-        self.vocab = [i for i in self.label_h5['vocab']]
-        self.videos = [i for i in self.label_h5['videos']]
+        self.vocab = [i.decode() for i in self.label_h5['vocab']]
+        self.videos = [i.decode() for i in self.label_h5['videos']]
 
         self.ix_to_word = {i: w for i, w in enumerate(self.vocab)}
         self.num_videos = len(self.videos)
-        self.index = range(self.num_videos)
+        self.index = list(range(self.num_videos))
 
         # load the json file which contains additional information about the
         # dataset
@@ -70,7 +70,7 @@ class DataLoader():
         if self.bcmrscores_pkl is not None:
             eval_metric = opt.get('eval_metric', 'CIDEr')
             logger.info('Loading: %s, with metric: %s', self.bcmrscores_pkl, eval_metric)
-            self.bcmrscores = cPickle.load(open(self.bcmrscores_pkl))
+            self.bcmrscores = pickle.load(open(self.bcmrscores_pkl, 'rb'))
             if eval_metric == 'CIDEr' and eval_metric not in self.bcmrscores:
                 eval_metric = 'cider'
             self.bcmrscores = self.bcmrscores[eval_metric]

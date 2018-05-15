@@ -16,7 +16,7 @@ from pycocoevalcap.bleu.bleu import Bleu
 from pycocoevalcap.rouge.rouge import Rouge
 from pycocoevalcap.meteor.meteor import Meteor
 
-import cPickle
+import pickle
 
 
 def adjust_learning_rate(opt, optimizer, epoch):

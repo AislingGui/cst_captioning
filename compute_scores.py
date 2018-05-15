@@ -32,7 +32,7 @@ from datetime import datetime
 
 import utils 
 logger = logging.getLogger(__name__)
-from six.moves import cPickle
+import pickle
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
@@ -99,7 +99,7 @@ if __name__ == "__main__":
             gt_scores[method][:,i] = scores_i
             logger.info('%s: %f', method, score_i)
         
-    cPickle.dump(gt_scores, open(
-        args.output_pkl, 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
+    pickle.dump(gt_scores, open(
+        args.output_pkl, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
     
     logger.info('Time: %s', datetime.now() - start)

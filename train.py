@@ -11,8 +11,8 @@ import math
 import json
 import uuid
 import logging
+import pickle
 from datetime import datetime
-from six.moves import cPickle
 
 from dataloader import DataLoader
 from model import CaptionModel, CrossEntropyCriterion, RewardCriterion
@@ -367,8 +367,8 @@ def validate(model, criterion, loader, opt):
         assert num_videos == gt_avglogps.shape[0]
         
         gt_avglogps_file = opt.model_file.replace('.pth', '_gt_avglogps.pkl', 1)
-        cPickle.dump(gt_avglogps, open(
-            gt_avglogps_file, 'w'), protocol=cPickle.HIGHEST_PROTOCOL)
+        pickle.dump(gt_avglogps, open(
+            gt_avglogps_file, 'w'), protocol=pickle.HIGHEST_PROTOCOL)
         
         logger.info('Wrote GT logp to: %s', gt_avglogps_file)
         

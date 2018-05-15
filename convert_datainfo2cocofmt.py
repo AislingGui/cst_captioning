@@ -2,7 +2,6 @@
 Convert input json to coco format to use COCO eval toolkit
 """
 
-from __future__ import print_function
 import argparse
 from datetime import datetime
 import logging
