@@ -56,6 +56,7 @@ if __name__ == '__main__':
     opt.seq_length = checkpoint_opt.seq_length
     opt.feat_dims = checkpoint_opt.feat_dims
 
+
     assert opt.vocab_size == test_loader.get_vocab_size()
     assert opt.seq_length == test_loader.get_seq_length()
     assert opt.feat_dims == test_loader.get_feat_dims()

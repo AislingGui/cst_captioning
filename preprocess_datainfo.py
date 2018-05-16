@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 def prepro_captions(videos):
 
     logger.info("Preprocessing %d videos", len(videos))
+    translator = str.maketrans('', '', string.punctuation)
     for i, v in enumerate(videos):
         v['processed_tokens'] = []
         if i % 100 == 0:
@@ -28,7 +29,7 @@ def prepro_captions(videos):
             caption_ascii = ''.join(
                 [ii if ord(ii) < 128 else '' for ii in caption])
             tokens = str(caption_ascii).lower().translate(
-                string.punctuation).strip().split()
+                translator).strip().split()
             v['processed_tokens'].append(tokens)
 
 

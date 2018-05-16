@@ -34,7 +34,6 @@ class DataLoader():
         self.label_h5 = h5py.File(opt['label_h5'], 'r')
         self.vocab = [i.decode() for i in self.label_h5['vocab']]
         self.videos = [i.decode() for i in self.label_h5['videos']]
-        self.labels = self.label_h5['labels']
 
         self.ix_to_word = {i: w for i, w in enumerate(self.vocab)}
         self.num_videos = len(self.videos)
