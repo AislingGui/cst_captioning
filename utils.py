@@ -87,7 +87,10 @@ def decode_sequence(ix_to_word, seq):
             if ix > 0:
                 if j >= 1:
                     txt = txt + ' '
-                txt = txt + ix_to_word[ix]
+                w = ix_to_word[ix]
+                # used to load model trained by python2 version of code
+                w = w.decode() if isinstance(w, bytes) else w
+                txt = txt + w
             else:
                 break
         out.append(txt)

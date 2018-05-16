@@ -66,7 +66,7 @@ if __name__ == '__main__':
         logger.info(
             'Randomly sample maximum %d caption(s) per video',
             args.max_caption)
-        for k, v in org_dict.iteritems():
+        for k, v in org_dict.items():
             sample_dict[k] = random.sample(org_dict[k], args.max_caption)
 
         anns = [{'caption': remove_nonaccii(s['caption']),
