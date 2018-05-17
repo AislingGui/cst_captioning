@@ -4,26 +4,18 @@ import torch.nn.functional as F
 import numpy as np
 
 
-def to_contiguous(tensor):
-    if tensor.is_contiguous():
-        return tensor
-    else:
-        return tensor.contiguous()
-
-
 class RewardCriterion(nn.Module):
 
     def __init__(self):
         super(RewardCriterion, self).__init__()
 
     def forward(self, seq, logprobs, reward):
-        logprobs = to_contiguous(logprobs).view(-1)
-        reward = to_contiguous(reward).view(-1)
+        logprobs = logprobs.contiguous().view(-1)
+        reward = reward.contiguous().view(-1)
         mask = (seq > 0).float()
         # add one to the right to count for the <eos> token
-        mask = to_contiguous(
-            torch.cat([mask.new_ones(mask.size(0), 1), mask[:, :-1]],
-                      1)).view(-1)
+        mask = torch.cat([mask.new_ones(mask.size(0), 1), mask[:, :-1]],
+                         1).contiguous().view(-1)
         #import pdb; pdb.set_trace()
         output = -logprobs * reward * mask
         output = torch.sum(output) / torch.sum(mask)
@@ -41,9 +33,9 @@ class CrossEntropyCriterion(nn.Module):
         target = target[:, :pred.size(1)]
         mask = mask[:, :pred.size(1)]
 
-        pred = to_contiguous(pred).view(-1, pred.size(2))
-        target = to_contiguous(target).view(-1, 1)
-        mask = to_contiguous(mask).view(-1, 1)
+        pred = pred.contiguous().view(-1, pred.size(2))
+        target = target.contiguous().view(-1, 1)
+        mask = mask.contiguous()).view(-1, 1)
 
         output = -pred.gather(1, target) * mask
         output = torch.sum(output) / torch.sum(mask)
@@ -208,7 +200,7 @@ class CaptionModel(nn.Module):
     def init_weights(self):
         initrange = 0.1
         nn.init.uniform_(self.embed.weight, a=-initrange, b=initrange)
-        nn.init.uniform_(self.logit.weight)
+        nn.init.uniform_(self.logit.weight, a=-initrange, b=initrange)
         nn.init.constant_(self.logit.bias, 0)
 
     def init_hidden(self, batch_size):
@@ -339,7 +331,8 @@ class CaptionModel(nn.Module):
                         prob_prev = torch.exp(logprobs.detach()).cpu()
                     else:
                         # scale logprobs by temperature
-                        prob_prev = torch.exp(torch.div(logprobs.detach(), temperature)).cpu()
+                        prob_prev = torch.exp(
+                            torch.div(logprobs.detach(), temperature)).cpu()
                     #import pdb; pdb.set_trace()
                     it = torch.multinomial(prob_prev, 1).cuda()
                     # gather the logprobs at sampled positions
@@ -414,7 +407,7 @@ class CaptionModel(nn.Module):
                     for every previous beam we now many new possibilities to branch out
                     we need to resort our beams to maintain the loop invariant of keeping
                     the top beam_size most likely sequences."""
-                    logprobsf = logprobs.float().cpu()  
+                    logprobsf = logprobs.float().cpu()
                     # lets go to CPU for more efficiency in indexing operations
                     # sorted array of logprobs along each previous beam (last
                     # true = descending)

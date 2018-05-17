@@ -7,7 +7,6 @@ import numpy as np
 import os
 import sys
 import time
-import math
 import json
 import uuid
 import logging
@@ -282,7 +281,7 @@ def validate(model, criterion, loader, opt):
 
     num_videos = loader.get_num_videos()
     batch_size = loader.get_batch_size()
-    num_iters = int(math.ceil(num_videos / batch_size))
+    num_iters = int(np.ceil(num_videos / batch_size))
     last_batch_size = num_videos % batch_size
     seq_per_img = loader.get_seq_per_img()
     model.set_seq_per_img(seq_per_img)
