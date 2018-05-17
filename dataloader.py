@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class DataLoader():
-
     """Class to load video features and captions"""
 
     def __init__(self, opt):
@@ -59,29 +58,27 @@ class DataLoader():
             # load the pointers in full to RAM (should be small enough)
             self.label_start_ix = self.label_h5['label_start_ix']
             self.label_end_ix = self.label_h5['label_end_ix']
-            assert(self.label_start_ix.shape[0] == self.label_end_ix.shape[0])
+            assert (self.label_start_ix.shape[0] == self.label_end_ix.shape[0])
             self.has_label = True
         else:
             self.has_label = False
 
         if self.bcmrscores_pkl is not None:
             eval_metric = opt.get('eval_metric', 'CIDEr')
-            logger.info('Loading: %s, with metric: %s', self.bcmrscores_pkl, eval_metric)
+            logger.info('Loading: %s, with metric: %s', self.bcmrscores_pkl,
+                        eval_metric)
             self.bcmrscores = pickle.load(open(self.bcmrscores_pkl, 'rb'))
             if eval_metric == 'CIDEr' and eval_metric not in self.bcmrscores:
                 eval_metric = 'cider'
             self.bcmrscores = self.bcmrscores[eval_metric]
-            
+
         if self.mode == 'train':
             self.shuffle_videos()
 
-    def __del__(self):
-        """
-        # has bugs in python3
+    def close(self):
         self.label_h5.close()
         for f in self.feat_h5:
             f.close()
-        """
 
     def get_batch(self):
 
@@ -92,16 +89,17 @@ class DataLoader():
 
         if self.has_label:
             label_batch = torch.zeros(
-                (self.batch_size * self.seq_per_img,
-                self.seq_length), dtype=torch.long)
-            mask_batch = torch.zeros(
-                self.batch_size * self.seq_per_img,
-                self.seq_length)
+                (self.batch_size * self.seq_per_img, self.seq_length),
+                dtype=torch.long)
+            mask_batch = torch.zeros(self.batch_size * self.seq_per_img,
+                                     self.seq_length)
 
         videoids_batch = []
         gts = []
-        bcmrscores = np.zeros((self.batch_size, self.seq_per_img)) if self.bcmrscores_pkl is not None else None
-        
+        bcmrscores = np.zeros(
+            (self.batch_size,
+             self.seq_per_img)) if self.bcmrscores_pkl is not None else None
+
         for ii in range(self.batch_size):
             idx = self.index[self.iterator]
             video_id = int(self.videos[idx])
@@ -119,7 +117,8 @@ class DataLoader():
                 assert ncap > 0, 'No captions!!'
 
                 seq = torch.zeros(self.seq_per_img, self.seq_length)
-                seq_all = torch.from_numpy(np.array(self.label_h5['labels'][ix1:ix2]))
+                seq_all = torch.from_numpy(
+                    np.array(self.label_h5['labels'][ix1:ix2]))
 
                 if ncap <= self.seq_per_img:
                     seq[:ncap] = seq_all[:ncap]
@@ -136,15 +135,14 @@ class DataLoader():
                 label_batch[il:il + self.seq_per_img] = seq
 
                 # Used for reward evaluation
-                gts.append(
-                    self.label_h5['labels'][
-                        self.label_start_ix[idx]: self.label_end_ix[idx]])
+                gts.append(self.label_h5['labels'][self.label_start_ix[idx]:
+                                                   self.label_end_ix[idx]])
 
-                # pre-computed cider scores, 
+                # pre-computed cider scores,
                 # assuming now that videos order are same (which is the sorted videos order)
                 if self.bcmrscores_pkl is not None:
                     bcmrscores[ii] = self.bcmrscores[idx]
-                    
+
             self.iterator += 1
             if self.iterator >= self.num_videos:
                 logger.info('===> Finished loading epoch %d', self.epoch)

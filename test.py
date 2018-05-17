@@ -74,3 +74,4 @@ if __name__ == '__main__':
     logger.info('Start testing...')
     test(model, xe_criterion, test_loader, opt)
     logger.info('Time: %s', datetime.now() - start)
+    test_loader.close()

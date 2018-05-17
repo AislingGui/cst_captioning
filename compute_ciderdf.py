@@ -63,8 +63,8 @@ def compute_doc_freq(crefs):
     document_frequency = defaultdict(float)
     for refs in crefs:
         # refs, k ref captions of one image
-        for ngram in set([ngram for ref in refs for (
-                ngram, count) in ref.items()]):
+        for ngram in set(
+            [ngram for ref in refs for (ngram, count) in ref.items()]):
             document_frequency[ngram] += 1
             # maxcounts[ngram] = max(maxcounts.get(ngram,0), count)
     return document_frequency
@@ -120,36 +120,46 @@ def main(vocab_json, captions_json, output_pkl, save_words=False):
     ngram_words, ngram_idxs, ref_len = build_dict(videos, wtoi)
 
     logger.info('Saving index to: %s', output_pkl)
-    pickle.dump({'document_frequency': ngram_idxs, 'ref_len': ref_len}, open(
-        output_pkl, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+    pickle.dump(
+        {
+            'document_frequency': ngram_idxs,
+            'ref_len': ref_len
+        },
+        open(output_pkl, 'wb'),
+        protocol=pickle.HIGHEST_PROTOCOL)
 
     if save_words:
         output_file = output_pkl.replace('.pkl', '_words.pkl', 1)
         logger.info('Saving word to: %s', output_file)
-        pickle.dump({'document_frequency': ngram_words, 'ref_len': ref_len}, open(
-            output_file, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(
+            {
+                'document_frequency': ngram_words,
+                'ref_len': ref_len
+            },
+            open(output_file, 'wb'),
+            protocol=pickle.HIGHEST_PROTOCOL)
+
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s:%(levelname)s: %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG, format='%(asctime)s:%(levelname)s: %(message)s')
     parser = argparse.ArgumentParser()
 
     # input json
-    parser.add_argument('captions_json', default='_proprocessedtokens',
-                        help='_proprocessedtokens json file')
     parser.add_argument(
-        'output_pkl',
-        default='_pkl',
-        help='save idx frequencies')
+        'captions_json',
+        default='_proprocessedtokens',
+        help='_proprocessedtokens json file')
+    parser.add_argument(
+        'output_pkl', default='_pkl', help='save idx frequencies')
 
     parser.add_argument(
         '--output_words',
         action='store_true',
         help='optionally saving word frequencies')
 
-    parser.add_argument('--vocab_json', default=None,
-                        help='vocab json file')
-    
+    parser.add_argument('--vocab_json', default=None, help='vocab json file')
+
     args = parser.parse_args()
 
     start = datetime.now()

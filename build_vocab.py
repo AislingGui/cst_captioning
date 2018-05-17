@@ -29,33 +29,25 @@ def build_vocab(videos, word_count_threshold):
             counter.update(tokens)
 
     cw = sorted([(count, w) for w, count in counter.items()], reverse=True)
-    logger.info('Top words and their counts: \n %s',
-                '\n'.join(map(str, cw[:20])))
+    logger.info('Top words and their counts: \n %s', '\n'.join(
+        map(str, cw[:20])))
 
-    unknown_words = [w for w, n in counter.items() if n <
-                     word_count_threshold]
+    unknown_words = [w for w, n in counter.items() if n < word_count_threshold]
     unknown_count = sum(counter[w] for w in unknown_words)
     total_count = sum(counter.values())
 
     # for efficent calculating, set __EOS_TOKEN first so that its index will
     # be 0
     vocab = [__EOS_TOKEN, __BOS_TOKEN, __UNK_TOKEN]
-    vocab.extend([w for w, n in counter.items()
-                  if n >= word_count_threshold])
+    vocab.extend([w for w, n in counter.items() if n >= word_count_threshold])
 
     logger.info('Total words: %d', total_count)
-    logger.info(
-        '>> Number of unknown words: %d/%d = %.2f%%',
-        len(unknown_words),
-        len(counter),
-        len(unknown_words) *
-        100.0 /
-        len(counter))
-    logger.info(
-        '>> Number of words in vocab (including <unk>): %d',
-        len(vocab))
-    logger.info('>> Number of UNKs: %d/%d = %.2f%%', unknown_count,
-                total_count, unknown_count * 100.0 / total_count)
+    logger.info('>> Number of unknown words: %d/%d = %.2f%%',
+                len(unknown_words), len(counter),
+                len(unknown_words) * 100.0 / len(counter))
+    logger.info('>> Number of words in vocab (including <unk>): %d', len(vocab))
+    logger.info('>> Number of UNKs: %d/%d = %.2f%%', unknown_count, total_count,
+                unknown_count * 100.0 / total_count)
 
     return vocab
 
@@ -70,15 +62,16 @@ def main(input_json, output_json, word_count_threshold):
     logger.info('Writing to %s', output_json)
     json.dump(vocab, open(output_json, 'w'))
 
+
 ######################################################################
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s:%(levelname)s: %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG, format='%(asctime)s:%(levelname)s: %(message)s')
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('input_json', type=str,
-                        help='%_proprocessedtokens.json')
+    parser.add_argument(
+        'input_json', type=str, help='%_proprocessedtokens.json')
     parser.add_argument(
         'output_json', default='_vocab.json', help='output vocab file')
 
@@ -86,7 +79,9 @@ if __name__ == "__main__":
         '--word_count_threshold',
         default=0,
         type=int,
-        help='only words that occur no less than this number of times will be put in vocab')
+        help=
+        'only words that occur no less than this number of times will be put in vocab'
+    )
 
     args = parser.parse_args()
     logger.info('Input parameters: %s', args)

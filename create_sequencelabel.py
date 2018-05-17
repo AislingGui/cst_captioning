@@ -24,8 +24,8 @@ def encode_captions(videos, max_length, wtoi):
     """
 
     N = len(videos)
-    M = sum(len(v['final_captions'])
-            for v in videos)  # total number of captions
+    M = sum(
+        len(v['final_captions']) for v in videos)  # total number of captions
 
     label_arrays = []
     # note: these will be one-indexed
@@ -104,27 +104,30 @@ def main(vocab_json, captions_json, output_h5, max_length):
 
         logger.info('Wrote to %s', output_h5)
 
+
 ######################################################################
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s:%(levelname)s: %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG, format='%(asctime)s:%(levelname)s: %(message)s')
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('vocab_json', default='_vocab.json',
-                        help='vocab json file')
-    parser.add_argument('captions_json', default='_proprocessedtokens',
-                        help='_proprocessedtokens json file')
     parser.add_argument(
-        'output_h5',
-        default='_sequencelabel.h5',
-        help='output h5 file')
+        'vocab_json', default='_vocab.json', help='vocab json file')
+    parser.add_argument(
+        'captions_json',
+        default='_proprocessedtokens',
+        help='_proprocessedtokens json file')
+    parser.add_argument(
+        'output_h5', default='_sequencelabel.h5', help='output h5 file')
 
     parser.add_argument(
         '--max_length',
         default=30,
         type=int,
-        help='max length of a caption, in number of words. captions longer than this get clipped.')
+        help=
+        'max length of a caption, in number of words. captions longer than this get clipped.'
+    )
 
     args = parser.parse_args()
     logger.info('Input parameters: %s', args)

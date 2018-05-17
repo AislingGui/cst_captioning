@@ -19,23 +19,21 @@ def remove_nonaccii(s):
     s = ''.join([i if ord(i) < 128 else '' for i in s])
     return s
 
+
 if __name__ == '__main__':
     start = datetime.now()
 
     logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s:%(levelname)s: %(message)s')
+        level=logging.DEBUG, format='%(asctime)s:%(levelname)s: %(message)s')
 
     argparser = argparse.ArgumentParser(
-        description="Prepare image input in Json format for neuraltalk extraction and visualization")
+        description=
+        "Prepare image input in Json format for neuraltalk extraction and visualization"
+    )
     argparser.add_argument(
-        "input_json",
-        type=str,
-        help="Standalized datainfo file")
+        "input_json", type=str, help="Standalized datainfo file")
     argparser.add_argument(
-        "output_json",
-        type=str,
-        help="Output json in COCO format")
+        "output_json", type=str, help="Output json in COCO format")
     argparser.add_argument(
         "--max_caption",
         type=int,
@@ -52,10 +50,11 @@ if __name__ == '__main__':
     imgs = [{'id': v['id']} for v in infos['videos']]
 
     if args.max_caption <= 0:
-        anns = [{'caption': remove_nonaccii(s['caption']),
-                 'image_id': s['video_id'],
-                 'id': s['id']}
-                for s in infos['captions']]
+        anns = [{
+            'caption': remove_nonaccii(s['caption']),
+            'image_id': s['video_id'],
+            'id': s['id']
+        } for s in infos['captions']]
     else:
         logger.info('Create dictionary of video captions')
         org_dict = {}
@@ -63,23 +62,24 @@ if __name__ == '__main__':
             org_dict.setdefault(s['video_id'], []).append(s['id'])
 
         sample_dict = {}
-        logger.info(
-            'Randomly sample maximum %d caption(s) per video',
-            args.max_caption)
+        logger.info('Randomly sample maximum %d caption(s) per video',
+                    args.max_caption)
         for k, v in org_dict.items():
             sample_dict[k] = random.sample(org_dict[k], args.max_caption)
 
-        anns = [{'caption': remove_nonaccii(s['caption']),
-                 'image_id': s['video_id'],
-                 'id': s['id']}
-                for s in infos['captions'] if s['id'] in sample_dict[s['video_id']]]
+        anns = [{
+            'caption': remove_nonaccii(s['caption']),
+            'image_id': s['video_id'],
+            'id': s['id']
+        } for s in infos['captions'] if s['id'] in sample_dict[s['video_id']]]
 
     out = {
         'images': imgs,
         'annotations': anns,
         'type': 'captions',
         'info': infos['info'],
-        'licenses': 'n/a'}
+        'licenses': 'n/a'
+    }
 
     logger.info('Saving...')
     with open(args.output_json, 'w') as f:
