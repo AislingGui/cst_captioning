@@ -35,7 +35,7 @@ class CrossEntropyCriterion(nn.Module):
 
         pred = pred.contiguous().view(-1, pred.size(2))
         target = target.contiguous().view(-1, 1)
-        mask = mask.contiguous()).view(-1, 1)
+        mask = mask.contiguous().view(-1, 1)
 
         output = -pred.gather(1, target) * mask
         output = torch.sum(output) / torch.sum(mask)
